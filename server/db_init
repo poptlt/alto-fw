@@ -1,0 +1,87 @@
+                CREATE TABLE users (
+                    key Utf8 NOT NULL,
+                    ref Utf8,
+                    name Utf8,
+                    data JsonDocument,
+                    developer Bool,
+                    PRIMARY KEY (key),
+                    INDEX idx_ref GLOBAL ON (ref)
+                );
+
+                CREATE TABLE sessions (
+                    ref Utf8 NOT NULL,
+                    user Utf8,
+                    PRIMARY KEY (ref),
+                    INDEX idx_user GLOBAL ON (user)
+                );
+
+
+
+                CREATE TABLE actions (
+                    ref Utf8 NOT NULL,
+                    type Utf8,
+                    user Utf8,
+                    date Datetime,
+                    data JsonDocument,
+                    PRIMARY KEY (ref)
+                );
+
+
+                
+                CREATE TABLE invitos (
+                    ref Utf8 NOT NULL,
+                    type Utf8,
+                    user Utf8,
+                    date Datetime,
+                    data JsonDocument,
+                    PRIMARY KEY (ref)
+                );
+
+                CREATE TABLE user_invitos (
+                    object Utf8 NOT NULL,
+                    invito Utf8 NOT NULL,
+                    deleted Bool,
+                    PRIMARY KEY (object, invito),
+                    INDEX idx_invito GLOBAL ON (invito)
+                );
+
+
+
+                CREATE TABLE files (
+                    ref Utf8 NOT NULL,
+                    ext Utf8,
+                    user Utf8,
+                    date Datetime,
+                    data JsonDocument,
+                    PRIMARY KEY (ref)
+                );
+
+
+                CREATE TABLE amigos (
+                    object Utf8 NOT NULL,
+                    amigo Utf8 NOT NULL,
+                    path Utf8,
+                    deleted Bool,
+                    action Utf8,
+                    PRIMARY KEY (object, amigo),
+                    INDEX idx_amigo GLOBAL ON (object, amigo, path, deleted),
+                    INDEX idx_parent GLOBAL ON (amigo, object, path, deleted)
+                );
+
+                CREATE TABLE amigo_groups (
+                    ref Utf8 NOT NULL,
+                    name Utf8,
+                    action Utf8,
+                    PRIMARY KEY (ref)
+                );
+
+                CREATE TABLE user_nick (
+                    user Utf8 NOT NULL,
+                    for_user Utf8 NOT NULL,
+                    name Utf8,
+                    PRIMARY KEY (user, for_user)
+                );
+
+
+                
+
