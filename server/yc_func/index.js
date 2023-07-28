@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid')
 
 module.exports = function({data, app, dev_client}) {
-
+console.log({data, app, dev_client})
     return async function(event, context) {
 
         let headers = {'Content-Type': 'application/json'}
