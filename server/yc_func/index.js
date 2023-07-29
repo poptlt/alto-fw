@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid')
 
 module.exports = function({data, app, dev_client}) {
-console.log({data, app, dev_client})
+
     return async function(event, context) {
 
         let headers = {'Content-Type': 'application/json'}
@@ -11,7 +11,7 @@ console.log({data, app, dev_client})
             'Access-Control-Allow-Headers': 'x-xsrf-token, Origin, Content-Type, X-Auth-Token, Set-Cookie, Cookie, Access-Control-Allow-Headers, Access-Control-Allow-Origin',
             'Access-Control-Allow-Origin': dev_client,
         }
-console.log({headers})        
+        
         if (!(event.httpMethod == 'OPTIONS' || event.httpMethod == 'POST')) {
 
             return {
