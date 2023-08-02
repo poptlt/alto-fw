@@ -9,6 +9,107 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
     const {client_id, clientSecret, authUrl} = auth
 
+    const invito_types = {}
+    
+    const invito = {
+
+        type: function(type, data) {
+
+            if (invito_types[type]) throw new Error(`Тип приглашения ${type} уже существует`)
+            else invito_types[type] = data
+        },
+
+        get: async function(ctx, type, data) {
+
+            const ref = new_ref('invito')
+           
+            const user = await app.auth.current_user(ctx)
+
+            if (!invito_types[type]) throw {code: 'SYSTEM', message: `Не определен тип приглашения ${type}`}
+
+            await ydb.query(`
+                INSERT INTO invitos(ref, type, user, date, data)
+                    VALUES ($ref, $type, $user, CurrentUtcDatetime(), CAST($data AS JsonDocument))
+            `, {ref, type, user, data})
+
+            return ref            
+        },
+
+        apply: async function(ctx, invito) {
+
+            ctx.external = false
+
+            let session = ref('session', ctx.session)
+            let user  = await app.auth.current_user(ctx)
+
+            if (!user) await ydb.query(`
+
+                UPSERT INTO user_invitos(object, invito, deleted)
+                VALUES (session, invito, FALSE)
+            `, {session, invito})
+
+            else {
+
+                let invt = await ydb.query(`
+                
+                    SELECT invito FROM user_invitos
+                        WHERE object = $user AND invito = $invito AND NOT deleted
+                `, {user, invito}, 1, 1)
+
+                if (invt) return undefined
+
+                let invito_data = await ydb.query(`
+                    SELECT * FROM invitos WHERE ref = $invito
+                `, {invito}, 1)
+
+                if (!invito_data) throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой приглашения'}
+
+
+                const type = invito_data.type
+                const date = new Date(invito_data.date)
+                const data = invito_data.data
+                const handler = invito_types[type].handler
+
+                let interval = new Date() - date
+
+                let expire_interval = invito_types[type].expire ? invito_types[type].expire : 7
+                expire_interval = expire_interval * 1000 * 60 * 60 * 24
+
+                if (interval > expire_interval) return 'Срок действия приглашения истек!' 
+
+                if (!invito_types[type].multi) {
+                    
+                    let users = await ydb.query(`
+                    
+                        SELECT object FROM user_invitos VIEW idx_invito
+                        WHERE invito = $invito AND object <> $user AND object LIKE 'user_%' AND NOT deleted
+                    `, {invito, user}, 0, 1)
+
+                    if (users.length) return 'Приглашение уже использованно другим пользователем!'                    
+                }
+
+                ctx.tsn = await ydb.tsn()
+
+                await handler(ctx, data)
+
+                await ctx.tsn.query(`
+
+                    UPSERT INTO user_invitos(object, invito, deleted)
+                        SELECT object, invito, TRUE AS deleted 
+                            FROM user_invitos 
+                            WHERE object = $session AND invito = $invito
+                        UNION ALL
+                        SELECT $user AS object, $invito AS invito, FALSE AS deleted
+                `, {session, invito, user})
+
+                let success = invito_types[type].success
+
+                ctx.tsn.commit()
+                return success ? await success(ctx, data) : 'Приглашение успешно исполнено!'
+            }
+        }
+    }
+
     const handlers = {
 
         yandex_oauth2_url: async function() {
@@ -131,6 +232,11 @@ module.exports = function({app, ydb, auth, ref_key}) {
             return ctx.current_user
         },
         
+        apply_invito: async function(ctx, invito_ref) {
+
+            return invito.apply(ctx, invito_ref)
+        },
+
         user_nick: async function (ctx, {user, name}) {
 
             let for_user = await handlers.current_user(ctx)
@@ -157,127 +263,16 @@ module.exports = function({app, ydb, auth, ref_key}) {
     ref_key.table('user', 'users')
 
     ref_key.key('user', 'name', `
+
+        $u = SELECT ref, name, $user AS for_user
+        FROM users
+        WHERE ref IN $refs;
+        
         SELECT u.ref AS ref, COALESCE(un.name, u.name) AS name
-            FROM users u LEFT JOIN user_nick un ON (un.user = u.ref)
-            WHERE u.ref IN $refs AND un.for_user = $user
+        FROM $u u LEFT JOIN user_nick un ON (un.user = u.ref AND un.for_user = u.for_user)
     `)
 
-    const invito_types = {}
-    
-    const invito = {
 
-        type: function(type, data) {
-
-            if (invito_types[type]) throw new Error(`Тип приглашения ${type} уже существует`)
-            else invito_types[type] = data
-        },
-
-        get: async function(ctx, type, data) {
-
-            const ref = new_ref('invito')
-            const user = await app.auth.current_user(ctx)
-
-            if (!invito_types[type]) throw {code: 'SYSTEM', message: `Не определен тип приглашения ${type}`}
-
-            await ydb.query(`
-                INSERT INTO invitos(ref, type, user, date, data)
-                    VALUES ($ref, $type, $user, CurrentUtcDatetime(), CAST($data AS JsonDocument))
-            `, {ref, type, user, data})
-
-            return ref            
-        },
-
-        apply: async function(ctx, invito) {
-
-            ctx.external = false
-
-            let session = ref('session', ctx.session)
-            let user  = await app.auth.current_user(ctx)
-            let connect = await ydb()
-
-            if (!user) await connect.executeDataQuery(`
-    
-                DECLARE $session AS Utf8;
-                DECLARE $invito AS Utf8;
-
-                UPSERT INTO user_invitos(object, invito, deleted)
-                    VALUES ($session, $invito, FALSE)
-            `, {$session: session, $invito: invito})  
-
-            else {
-
-                let [res] = await connect.executeDataQuery(`
-    
-                    DECLARE $user AS Utf8;
-                    DECLARE $invito AS Utf8;
-        
-                    SELECT object FROM user_invitos
-                        WHERE object = $user AND invito = $invito AND NOT deleted
-                `, {$user: user, $invito: invito})  
-
-                if (res.length) return undefined
-        
-                let [invito_data] = await connect.executeDataQuery(`
-                    DECLARE $invito AS Utf8;
-                    SELECT * FROM invitos WHERE ref = $invito;
-                `, {$invito: invito})                 
-
-                if (invito_data.length != 1) throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой приглашения'}
-
-                invito_data = invito_data[0]
-
-                const type = invito_data.type
-                const date = new Date(invito_data.date)
-                const data = JSON.parse(invito_data.data)
-                const handler = invito_types[type].handler
-
-                let interval = new Date() - date
-
-                let expire_interval = invito_types[type].expire ? invito_types[type].expire : 7
-                expire_interval = expire_interval * 1000 * 60 * 60 * 24
-
-                if (interval > expire_interval) return 'Срок действия приглашения истек!' 
-
-                if (!invito_types[type].multi) {
-
-                    let [users] = await connect.executeDataQuery(`
-                        DECLARE $user AS Utf8;
-                        DECLARE $invito AS Utf8;
-
-                        SELECT object FROM user_invitos VIEW idx_invito
-                            WHERE invito = $invito AND object <> $user AND object LIKE 'user_%' AND NOT deleted;
-                    `, {$user: user, $invito: invito}) 
-                    
-                    if (users.length) return 'Приглашение уже использованно другим пользователем!'                    
-                }
-
-                if (typeof handler == 'function') handler = handler(ctx, user, data)
-
-                await connect.executeDataQuery(`
-
-                    DECLARE $session AS Utf8;
-                    DECLARE $invito AS Utf8;
-                    DECLARE $user AS Utf8;
-                    DECLARE $data_str AS Utf8;
-
-                    $data = CAST($data_str AS JsonDocument);
-
-                    ${handler};
-
-                    UPSERT INTO user_invitos(object, invito, deleted)
-                        SELECT object, invito, TRUE AS deleted 
-                            FROM user_invitos 
-                            WHERE object = $session AND invito = $invito
-                        UNION ALL
-                        SELECT $user AS object, $invito AS invito, FALSE AS deleted
-                `, {$session: session, $invito: invito, $user: user, $data_str: JSON.stringify(data)})
-
-                let success = invito_types[type].success
-
-                return success ? await success(ctx, data) : 'Приглашение успешно исполнено!'
-            }
-        }
-    }
 
     return {invito}
 }
