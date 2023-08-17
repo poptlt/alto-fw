@@ -36,12 +36,12 @@ module.exports = function({app, ydb}) {
             `, {ref, type, user, data})
 
             ctx.tsn = tsn
-            await handler(ctx, {action: ref, type, data}) 
+            let result = await handler(ctx, {action: ref, type, data}) 
 
             await tsn.commit()
             delete ctx.tsn
 
-            return ref
+            return result
         }
     }
 }
