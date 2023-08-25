@@ -185,6 +185,13 @@ module.exports = function({app, ydb, auth, ref_key}) {
 */
         },
 
+        logout: async function(ctx) {
+
+            await ydb.query(`
+                DELETE FROM sessions WHERE ref = $session
+            `, {session: ref('session', ctx.session)})
+        },
+
         is_authorised: async function(ctx) {
 
             if (!ctx.session) return false

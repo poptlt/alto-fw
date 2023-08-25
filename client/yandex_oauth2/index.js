@@ -6,6 +6,21 @@ export default {
 
         const req = request(url)
 
+        const alto = {
+
+            async login() {
+
+                let yandex_url = await req({method: 'auth.yandex_oauth2_url'})
+                if (yandex_url.result) window.location = yandex_url.result                
+            },
+
+            async logout() {
+
+                let res = await req({method: 'auth.logout', params: []})
+                window.location.reload()
+            }
+        }
+
         Vue.mixin({
 
             async created() {
@@ -53,6 +68,7 @@ export default {
                             url.searchParams.delete('from_yandex_auth')
                             url.searchParams.delete('code')
                             window.history.replaceState(null, null, url)
+                            window.location.reload()
                         }
                     }
 
@@ -60,21 +76,19 @@ export default {
 
                         let is_authorised = await req({method: 'auth.is_authorised'})
                         
-                        if (is_authorised.result === false) {
-
-                            if (auth_only) {
-                                let yandex_url = await req({method: 'auth.yandex_oauth2_url'})
-
-                                if (yandex_url.result)
-                                    window.location = yandex_url.result
-                            }
-                        }
-
+                        if (is_authorised.result === false && auth_only) alto.login()
                     }
 
 
                 }
-            }
+            },
+
+            data() {
+
+                return {
+                    alto,
+                }
+            },
         })
     }
 
