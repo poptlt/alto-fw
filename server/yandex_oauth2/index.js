@@ -275,10 +275,9 @@ module.exports = function({app, ydb, auth, ref_key}) {
         FROM users
         WHERE ref IN $refs;
         
-        SELECT u.ref AS ref, COALESCE(un.name, u.name) AS name
+        SELECT u.ref AS ref, COALESCE(un.name, u.name) AS name, TRUE AS access
         FROM $u u LEFT JOIN user_nick un ON (un.user = u.ref AND un.for_user = u.for_user)
     `)
-
 
 
     return {invito}
