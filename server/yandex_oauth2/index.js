@@ -269,6 +269,13 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
     ref_key.table('user', 'users')
 
+    ref_key.key('user', 'access', async function(ctx, ref_list) {
+
+        let user = await app.auth.current_user(ctx)
+
+        return ref_list.map(ref => ({ref, access: (ref == user)}))
+    })
+
     ref_key.key('user', 'name', `
 
         $u = SELECT ref, name, $user AS for_user

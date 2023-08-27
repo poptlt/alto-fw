@@ -59,14 +59,16 @@ module.exports = function({app, ydb, with_auth = false}) {
 
                 if (!from_query[type]) from_query[type] = {} 
                 if (!from_query[type].access) from_query[type].access = []
-                from_query[type].access.push(ref)
+                if (from_query[type].access.findIndex(item => item == ref) < 0)
+                    from_query[type].access.push(ref)
             }
 
             if (keys[type] && keys[type][key]) {
 
                 if (!from_query[type]) from_query[type] = {}
                 if (!from_query[type][key]) from_query[type][key] = []
-                from_query[type][key].push(ref)
+                if (from_query[type][key].findIndex(item => item == ref) < 0) 
+                    from_query[type][key].push(ref)
             }
 
             else if (tables[type]) {
@@ -127,8 +129,14 @@ module.exports = function({app, ydb, with_auth = false}) {
 
                             res.forEach(line => {
                                 if (!result[line.ref]) result[line.ref] = {}
-                                result[line.ref][key] = out ? out(line[key]) : line[key]
-                                if (key == 'access') result[line.ref][key] = !!result[line.ref][key]
+                                if (!result[line.ref].key_access) result[line.ref].key_access = {}
+                                if (key == 'access') result[line.ref][key] = !!line.access
+                                else {
+
+                                    result[line.ref][key] = out ? out(line[key]) : line[key]
+                                    if (line.access !== undefined) result[line.ref].key_access[key] = line.access
+                                }
+                                
                             })
 
                             resolve(1)
@@ -180,7 +188,18 @@ module.exports = function({app, ydb, with_auth = false}) {
 
             refs.forEach(ref => {
 
-                if (!result[ref].access) result[ref] = {access: false}
+                let ref_access = !!result[ref].access
+
+                let keys = Object.keys(result[ref]).filter(key => !(key == 'access' || key == 'key_access'))
+
+                keys.forEach(key => {
+
+                    let key_access = result[ref].key_access[key]
+
+                    if (key_access === undefined) { if (!ref_access) result[ref][key] = undefined }
+
+                    else { if (!key_access) result[ref][key] = undefined }
+                })
             })
         }
 
