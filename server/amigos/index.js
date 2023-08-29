@@ -6,48 +6,51 @@ function new_ref(type) {
     return `${type}_${uuidv4().split('-').join('_')}` 
 }
 
-module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
+function ydb_err_includes(err, str) {
 
-    async function owner(ref) {
+    if (err.message && err.message.includes(str)) return true
 
-        if (ref_type(ref) = 'user') return ref
-        
-        else return await ydb.query(`
-            SELECT object
-                FROM amigos VIEW idx_parent
-                WHERE amigo = $ref AND NOT deleted AND object LIKE 'user_%'
-        `, {ref}, 1, 1)
+    if (err.issues) {
+
+        for (issue of err.issues) {
+
+            let res = ydb_err_includes(issue, str)
+            if (res) return true
+        }
     }
+    
+    return false
+}
+
+
+module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
 
     async function set(ctx, {amigo1, amigo2, action = ''}) {
 
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
         
-        let r = await tsn.query(`
-
+        await tsn.query(`
+        
             $act = IF($action = '', NULL, $action);
 
-            $t1 = 
-                SELECT ref AS object, $amigo2 AS amigo, $act AS action, FALSE AS deleted, NULL AS path
-                    FROM users WHERE ref = $amigo1
+            UPSERT INTO amigos
+
+                SELECT 
+                    t1.user user, 
+                    t1.amigo amigo, 
+                    COALESCE(a.group, t1.group) group, 
+                    COALESCE(a.action, t1.action) action
+                    FROM (VALUES($amigo1, $amigo2, $amigo1, $action)) t1(user, amigo, group, action)
+                        LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
                 UNION ALL
-                SELECT ref AS object, $amigo1 AS amigo, $act AS action, FALSE AS deleted, NULL AS path
-                    FROM users WHERE ref = $amigo2;
-
-            $t2 = 
-                SELECT object, amigo
-                    FROM amigos
-                    WHERE NOT deleted 
-                        AND ((object = $amigo1 AND amigo = $amigo2) OR (object = $amigo2 AND amigo = $amigo1));
-
-            $t3 =  
-                SELECT Unwrap(t1.object) AS object, t1.amigo AS amigo, t1.action AS action, t1.deleted AS deleted, t1.path AS path
-                    FROM $t1 t1 LEFT JOIN $t2 t2 ON (t1.object = t2.object AND t1.amigo = t2.amigo) 
-                    WHERE t2.object IS NULL;
-              
-            UPSERT INTO amigos                    
-                SELECT * FROM $t3                    
-       `, {amigo1, amigo2, action})
+                SELECT 
+                    t1.user user, 
+                    t1.amigo amigo, 
+                    COALESCE(a.group, t1.group) group, 
+                    COALESCE(a.action, t1.action) action
+                    FROM (VALUES($amigo2, $amigo1, $amigo2, $action)) t1(user, amigo, group, action)
+                        LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
+        `, {amigo1, amigo2, action})
 
         if (!ctx.tsn) tsn.commit()
     }
@@ -115,101 +118,142 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
         if (!ctx.tsn) tsn.commit()
     }
 
-    async function del({object, amigo, t_on, action}) {
-
-
-    }
-
     async function group_add(ctx, {parent, name, action = ''}) {
 
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
 
-        let group_ref = await tsn.query(`
-            SELECT amigo_groups.ref
-                FROM amigos
-                    JOIN amigo_groups ON (amigo_groups.ref = amigos.amigo)
-                WHERE object = $parent AND NOT deleted AND path IS NULL AND amigo_groups.name = $name
-        `, {parent, name}, 1, 1)
+        let user = await app.auth.current_user(ctx)
+        let ref = new_ref('amigo_group')
+        if (!parent) parent = user
 
-        if (group_ref) throw {code: 'FOR_USER', message: `Уже есть группа с наименованием ${name}`}
+        try {
 
-        group_ref = new_ref('amigo_group')
+            await tsn.query(`
 
-        await tsn.query(`
-            
-            $act = IF($action = '', NULL, $action);
+                $act = IF($action = '', NULL, $action);
+                $parent_is_user = IF($parent = $user, TRUE, FALSE);
 
-            $rows = 
-                SELECT $parent AS object, $group_ref AS amigo, $act AS action, FALSE AS deleted, NULL AS path
-                UNION ALL
-                SELECT object AS object, $group_ref AS amigo, $act AS action, FALSE AS deleted, 
-                    CASE
-                        WHEN path IS NULL THEN $parent
-                        ELSE path || CAST('.' AS Utf8) || $parent
-                    END AS path
-                    FROM amigos
-                    WHERE amigo = $parent AND amigo LIKE 'amigo_group_%' AND NOT deleted;
+                DISCARD SELECT Ensure(0, $parent_is_user OR (COUNT(*) = 1), 'error_1')
+                    FROM amigo_groups WHERE ref = $parent;
 
-            INSERT INTO amigo_groups(ref, name, action)
-                VALUES ($group_ref, $name, $act);
+                DISCARD SELECT Ensure(0, $parent_is_user OR (COUNT(*) = 1), 'error_2')
+                    FROM amigo_groups
+                    WHERE ref = $parent AND user = $user AND deleted IS NULL;
 
-            INSERT INTO amigos(object, amigo, action, deleted, path)
-                SELECT object, amigo, action, deleted, path FROM $rows                  
-        `, {group_ref, name, action, parent})
+                DISCARD SELECT Ensure(0, COUNT(*) = 0, 'error_3')
+                    FROM amigo_groups
+                    WHERE ref = $parent AND user = $user AND name = $name AND deleted IS NULL;
 
-        if (!ctx.tsn) tsn.commit()
+                INSERT INTO amigo_groups(ref, user, parent, name, created, saved, deleted)
+                    VALUES($ref, $user, $parent, $name, $act, NULL, NULL)
+            `, {ref, user, parent, name, action})
+
+            if (!ctx.tsn) tsn.commit()
+        }
+        catch(err) {
+
+            if (ydb_err_includes(err, 'error_1')) 
+                throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой родительской группы'}
+
+            if (ydb_err_includes(err, 'error_2')) 
+                throw {code: 'SYSTEM', message: 'Похоже, что группа не принадлежит текущему пользователю или она удалена'}
+
+            if (ydb_err_includes(err, 'error_3')) 
+                throw 'Уже существует группа с таким наименованием'
+        }
     }
 
     async function group_del(ctx, {ref, action = ''}) {
 
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
 
-        let qnt = await tsn.query(`
-            SELECT count(*)
-                FROM amigos
-                WHERE object = $ref AND NOT deleted
-        `, {ref}, 1, 1)
+        let user = await app.auth.current_user(ctx)
 
-        if (qnt) throw 'нельзя удалять не пустую группу'
+        try {
 
-        await tsn.query(`
+            await tsn.query(`
 
-            $act = IF($action = '', NULL, $action);
+                $act = IF($action = '', NULL, $action);
 
-            UPDATE amigos
-                SET deleted = TRUE, action = $act
-                WHERE amigo = $ref
-        `, {ref, action})
+                DISCARD SELECT Ensure(0, COUNT(*) = 1, 'error_1')
+                    FROM amigo_groups WHERE ref = $ref;
 
-        if (!ctx.tsn) tsn.commit()
+                DISCARD SELECT Ensure(0, COUNT(*) = 1, 'error_2')
+                    FROM amigo_groups
+                    WHERE ref = $ref AND user = $user AND deleted IS NULL; 
+
+                DISCARD SELECT Ensure(0, COUNT(*) = 0, 'error_3)
+                    FROM (
+                        SELECT amigo AS obj
+                            FROM amigos VIEW idx_group
+                            WHERE group = $ref
+                        UNION ALL
+                        SELECT ref AS obj
+                            FROM amigo_groups VIEW idx_parent
+                            WHERE parent = $ref AND deleted IS NULL
+                    ) t;
+
+                UPDATE amigo_groups SET deleted = $act
+                    WHERE ref = $ref
+            `, {ref, user, action})
+
+            if (!ctx.tsn) tsn.commit()
+        }
+        catch(err) {
+
+            if (ydb_err_includes(err, 'error_1')) 
+                throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой родительской группы'}
+
+            if (ydb_err_includes(err, 'error_2')) 
+                throw {code: 'SYSTEM', message: 'Похоже, что группа не принадлежит текущему пользователю или она удалена'}
+
+            if (ydb_err_includes(err, 'error_3')) 
+                throw 'Удалять можно только пустую группу'
+        }
+
     }
 
     async function group_rename(ctx, {ref, name, action = ''}) {
 
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
 
-        let qnt = await tsn.query(`
-            $parent = SELECT object FROM amigos WHERE amigo = $ref AND NOT deleted AND path IS NULL;
+        let user = await app.auth.current_user(ctx)
 
-            SELECT COUNT(*)
-                FROM amigos
-                    JOIN amigo_groups ON (amigo_groups.ref = amigos.amigo)
-                WHERE amigos.object = $parent AND NOT amigos.deleted AND amigos.path IS NULL
-                    AND amigo_groups.name = $name
-        `, {ref, name}, 1, 1)
+        try {
 
-        if (qnt) throw `Уже существует группа с наименованием ${name}`
+            await tsn.query(`
 
-        await tsn.query(`
+                $act = IF($action = '', NULL, $action);
+                $parent = SELECT parent FROM amigo_groups WHERE ref = $ref;
 
-            $act = IF($action = '', NULL, $action);
+                DISCARD SELECT Ensure(0, COUNT(*) = 1, 'error_1')
+                    FROM amigo_groups WHERE ref = $ref;
 
-            UPDATE amigo_groups 
-                SET name = $name, action = $act
-                WHERE ref = $ref
-        `, {ref, name, action})
+                DISCARD SELECT Ensure(0, COUNT(*) = 1, 'error_2')
+                    FROM amigo_groups
+                    WHERE ref = $ref AND user = $user AND deleted IS NULL; 
 
-        if (!ctx.tsn) tsn.commit()
+                DISCARD SELECT Ensure(0, COUNT(*) = 0, 'error_3')
+                    FROM amigo_groups VIEW idx_parent
+                    WHERE parent = $parent AND name = $name AND deleted IS NULL;
+
+                UPDATE amigo_groups SET name = $name
+                    WHERE ref = $ref
+            `, {ref, user, name, action})
+
+            if (!ctx.tsn) tsn.commit()
+        }
+        catch(err) {
+
+            if (ydb_err_includes(err, 'error_1')) 
+                throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой родительской группы'}
+
+            if (ydb_err_includes(err, 'error_2')) 
+                throw {code: 'SYSTEM', message: 'Похоже, что группа не принадлежит текущему пользователю или она удалена'}
+
+            if (ydb_err_includes(err, 'error_3')) 
+                throw 'Уже существует группа с таким наименованием'
+        }
     }
 
     if (ref_key) {
@@ -334,5 +378,5 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
 
     }
 
-    return {set, move, del, group_add, group_del, group_rename}
+    return {set, move, group_add, group_del, group_rename}
 }

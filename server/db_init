@@ -83,5 +83,28 @@
                 );
 
 
-                
+
+
+
+
+CREATE TABLE amigo_groups (
+    ref Utf8 NOT NULL,
+    user Utf8,
+    parent Utf8,
+    name Utf8,
+    created Utf8,
+    saved Utf8,
+    deleted Utf8,
+    PRIMARY KEY (ref),
+    INDEX idx_parent GLOBAL ON (parent)
+);
+
+CREATE TABLE amigos (
+    user Utf8 NOT NULL,
+    amigo Utf8 NOT NULL,
+    group Utf8,
+    action Utf8,
+    INDEX idx_group GLOBAL ON (group),
+    PRIMARY KEY (user, amigo),
+);                
 
