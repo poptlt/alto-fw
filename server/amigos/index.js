@@ -29,93 +29,76 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
 
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
         
-        await tsn.query(`
-        
-            $act = IF($action = '', NULL, $action);
+        if (amigo1 == amigo2) throw {code: 'SYSTEM', message: 'Нельзя пользователя делать другом самого себе'}
 
-            UPSERT INTO amigos
+        try {
 
-                SELECT 
-                    t1.user user, 
-                    t1.amigo amigo, 
-                    COALESCE(a.group, t1.group) group, 
-                    COALESCE(a.action, t1.action) action
-                    FROM (VALUES($amigo1, $amigo2, $amigo1, $action)) t1(user, amigo, group, action)
-                        LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
-                UNION ALL
-                SELECT 
-                    t1.user user, 
-                    t1.amigo amigo, 
-                    COALESCE(a.group, t1.group) group, 
-                    COALESCE(a.action, t1.action) action
-                    FROM (VALUES($amigo2, $amigo1, $amigo2, $action)) t1(user, amigo, group, action)
-                        LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
-        `, {amigo1, amigo2, action})
+            await tsn.query(`
+            
+                $act = IF($action = '', NULL, $action);
 
-        if (!ctx.tsn) tsn.commit()
+                DISCARD SELECT Ensure(0, COUNT(*) = 2, 'error_1')
+                    FROM users WHERE ref = $amigo1 OR ref = $amigo2;
+
+                UPSERT INTO amigos
+
+                    SELECT 
+                        t1.user user, 
+                        t1.amigo amigo, 
+                        COALESCE(a.group, t1.group) group, 
+                        COALESCE(a.action, t1.action) action
+                        FROM (VALUES($amigo1, $amigo2, $amigo1, $action)) t1(user, amigo, group, action)
+                            LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
+                    UNION ALL
+                    SELECT 
+                        t1.user user, 
+                        t1.amigo amigo, 
+                        COALESCE(a.group, t1.group) group, 
+                        COALESCE(a.action, t1.action) action
+                        FROM (VALUES($amigo2, $amigo1, $amigo2, $action)) t1(user, amigo, group, action)
+                            LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
+            `, {amigo1, amigo2, action})
+
+            if (!ctx.tsn) tsn.commit()
+        }
+
+        catch(err) {
+
+            if (ydb_err_includes(err, 'error_1')) 
+                throw {code: 'SYSTEM', message: 'Должны быть ссылки пользователей'}
+        }
     }
 
-    async function move(ctx, {owner, amigo, to, action = ''}) {
-
-        if (owner == amigo) throw {code: 'SYSTEM', message: 'корень дерева и перемещаемый пользователь не могут совпадать'}
+    async function move(ctx, {owner, amigos, to, action = ''}) {
 
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
 
-        let qnt = await tsn.query(`
-            SELECT COUNT(*) 
-                FROM amigos
-                    JOIN users u_a ON (u_a.ref = amigos.amigo)
-                    JOIN users u_o ON (u_o.ref = amigos.object)
-                WHERE object = $owner AND amigo = $amigo AND NOT deleted
-        `, {owner, amigo}, 1, 1)
+        let amigos_str = amigos.join(',')
 
-        if (!qnt) throw {code: 'SYSTEM', message: 'между корнем дерева и перемещаемым пользователем должна быть связь'}
+        try {
 
-        if (owner != to) {
+            await ctx.tsn.query(`
 
-            let qnt = await tsn.query(`
-                SELECT COUNT(*)
-                    FROM amigos
-                    WHERE object = $owner AND amigo = $to AND NOT deleted
-            `, {owner, to}, 1, 1)
+                $act = IF($action = '', NULL, $action);
+                $amigos = Unicode::SplitToList($amigos_str, ",");
+                $to_is_owner = IF($to = $owner, TRUE, FALSE);
 
-            if (!qnt) throw {code: 'SYSTEM', message: 'между корнем дерева и узлом, куда идет перемещение, должна быть связь'}
+                DISCARD SELECT Ensure(0, $to_is_owner OR (COUNT(*) = 1), 'error_1')
+                    FROM amigo_groups WHERE ref = $to AND user = $owner;
+
+                UPDATE amigos
+                    SET group = $to, action = $act
+                    WHERE user = $owner AND amigo IN $amigos
+            `, {owner, to, amigos_str, action})
+
+            if (!ctx.tsn) tsn.commit()
         }
 
-        await tsn.query(`
-        
-            $new =
-                SELECT $to AS object, $amigo AS amigo, NULL AS path
-                UNION ALL 
-                SELECT object, $amigo AS amigo, IF(path IS NULL, amigo, path || CAST('.' AS Utf8) || amigo) AS path
-                    FROM amigos VIEW idx_parent
-                    WHERE amigo = $to AND NOT deleted;
+        catch(err) {
 
-            $old_group = SELECT a1.object
-                FROM amigos a1
-                JOIN amigos a2 ON (a2.amigo = a1.object)
-                WHERE a1.amigo = $amigo AND NOT a1.deleted AND a1.path IS NULL 
-                AND a2.object = $owner AND NOT a2.deleted;
-                
-            $old_groups = 
-                SELECT COALESCE($old_group, $owner) AS object, $amigo AS amigo
-                UNION ALL
-                SELECT object, $amigo AS amigo 
-                FROM amigos
-                WHERE amigo = $old_group AND NOT deleted;  
-              
-            UPSERT INTO amigos    
-            SELECT 
-                Unwrap(COALESCE(n.object, o.object)) AS object,
-                Unwrap(COALESCE(n.amigo, o.amigo)) AS amigo,
-                COALESCE(n.path, NULL) AS path,
-                IF(n.object IS NOT NULL, FALSE, TRUE) AS deleted,
-                $action AS action
-                FROM $new n
-                    FULL JOIN $old_groups o ON (o.object = n.object AND o.amigo = n.amigo)    
-        `, {owner, amigo, to, action})
-
-        if (!ctx.tsn) tsn.commit()
+            if (ydb_err_includes(err, 'error_1')) 
+                throw {code: 'SYSTEM', message: 'Такой группы нет или она принадлежит другому пользователю'}
+        }
     }
 
     async function group_add(ctx, {parent, name, action = ''}) {
@@ -258,15 +241,28 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
 
     if (ref_key) {
 
-        ref_key.table('amigo', 'amigos')
         ref_key.table('amigo_group', 'amigo_groups')
+        ref_key.key('amigo_group', 'access', {
+            query: `
+                SELECT ref, IF(user = $user, TRUE, FALSE) AS access 
+                    FROM amigo_groups
+                    WHERE ref IN $refs
+            `
+        })
 
         ref_key.key('user', 'amigos', {
             query: `
-                SELECT object AS ref, Unicode::JoinFromList(AGG_LIST(amigo), ",") AS amigos
-                    FROM amigos
-                    WHERE object IN $refs AND NOT deleted AND path IS NULL
-                GROUP BY object;
+                SELECT ref, Unicode::JoinFromList(AGG_LIST(amigo), ",") AS amigos
+                    FROM (
+                        SELECT group AS ref, amigo
+                            FROM amigos VIEW idx_group
+                            WHERE group IN $refs
+                        UNION ALL
+                        SELECT parent AS ref, ref AS amigo
+                            FROM amigo_groups VIEW idx_parent
+                            WHERE parent IN $refs AND deleted IS NULL
+                    ) t
+                GROUP BY ref 
             `,
             out(data) { return data.split(',') },
             undef: []
@@ -274,15 +270,21 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
 
         ref_key.key('amigo_group', 'amigos', {
             query: `
-                SELECT object AS ref, Unicode::JoinFromList(AGG_LIST(amigo), ",") AS amigos
-                    FROM amigos
-                    WHERE object IN $refs AND NOT deleted AND path IS NULL
-                GROUP BY object;
+                SELECT ref, Unicode::JoinFromList(AGG_LIST(amigo), ",") AS amigos
+                    FROM (
+                        SELECT group AS ref, amigo
+                            FROM amigos VIEW idx_group
+                            WHERE group IN $refs
+                        UNION ALL
+                        SELECT parent AS ref, ref AS amigo
+                            FROM amigo_groups VIEW idx_parent
+                            WHERE parent IN $refs AND deleted IS NULL
+                    ) t
+                GROUP BY ref 
             `,
             out(data) { return data.split(',') },
             undef: []
-        })        
-
+        })  
     }
 
     if (ydb_action) {
@@ -299,9 +301,7 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
                     
                     'amigo_group_add',
 
-                    async function(ctx, {type, data}) { 
-                        return await app.auth.current_user(ctx) == await owner(data.parent) 
-                    },
+                    async function(ctx, {type, data}) { return true },
                     
                     async function(ctx, {action, type, data}) {
 
@@ -318,9 +318,7 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
                     
                     'amigo_group_del',
 
-                    async function(ctx, {type, data}) { 
-                        return await app.auth.current_user(ctx) == await owner(data.ref) 
-                    },
+                    async function(ctx, {type, data}) { return true },
                     
                     async function(ctx, {action, type, data}) {
 
@@ -336,9 +334,7 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
                     
                     'amigo_group_rename',
 
-                    async function(ctx, {type, data}) { 
-                        return await app.auth.current_user(ctx) == await owner(data.ref) 
-                    },
+                    async function(ctx, {type, data}) { return true },
                     
                     async function(ctx, {action, type, data}) {
 
@@ -352,11 +348,9 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
 
                 return ydb_action(
                     
-                    'amigo_move',
+                    'amigos_move',
 
-                    async function(ctx, {type, data}) { 
-                        return true 
-                    },
+                    async function(ctx, {type, data}) { return true },
                     
                     async function(ctx, {action, type, data}) {
 
