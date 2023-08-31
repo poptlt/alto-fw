@@ -43,19 +43,19 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
                 UPSERT INTO amigos
 
                     SELECT 
-                        t1.user user, 
-                        t1.amigo amigo, 
-                        COALESCE(a.group, t1.group) group, 
-                        COALESCE(a.action, t1.action) action
-                        FROM (VALUES($amigo1, $amigo2, $amigo1, $action)) t1(user, amigo, group, action)
+                        t1.user AS user, 
+                        t1.amigo AS amigo, 
+                        COALESCE(a.group, t1.group) AS group, 
+                        COALESCE(a.action, t1.action) AS action
+                        FROM (VALUES($amigo1, $amigo2, $amigo1, $action)) AS t1(user, amigo, group, action)
                             LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
                     UNION ALL
                     SELECT 
-                        t1.user user, 
-                        t1.amigo amigo, 
-                        COALESCE(a.group, t1.group) group, 
-                        COALESCE(a.action, t1.action) action
-                        FROM (VALUES($amigo2, $amigo1, $amigo2, $action)) t1(user, amigo, group, action)
+                        t1.user AS user, 
+                        t1.amigo AS amigo, 
+                        COALESCE(a.group, t1.group) AS group, 
+                        COALESCE(a.action, t1.action) AS action
+                        FROM (VALUES($amigo2, $amigo1, $amigo2, $action)) AS t1(user, amigo, group, action)
                             LEFT JOIN amigos a ON (a.user = t1.user AND a.amigo = t1.amigo)
             `, {amigo1, amigo2, action})
 
@@ -165,7 +165,7 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
                     FROM amigo_groups
                     WHERE ref = $ref AND user = $user AND deleted IS NULL; 
 
-                DISCARD SELECT Ensure(0, COUNT(*) = 0, 'error_3)
+                DISCARD SELECT Ensure(0, COUNT(*) = 0, 'error_3')
                     FROM (
                         SELECT amigo AS obj
                             FROM amigos VIEW idx_group

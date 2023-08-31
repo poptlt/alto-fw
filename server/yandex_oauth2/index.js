@@ -104,7 +104,8 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
                 let success = invito_types[type].success
 
-                ctx.tsn.commit()
+                await ctx.tsn.commit()
+                
                 return success ? await success(ctx, data) : 'Приглашение успешно исполнено!'
             }
         }
