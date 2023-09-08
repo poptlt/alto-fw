@@ -80,9 +80,10 @@ export default {
 
                 if (res.error) {
 
-                    cur.data = undefined
+                    // при ошибке в данные подставляем значение по умолчанию
+                    cur.data = cur._default
                     cur.error = res.error
-                    cur._resolve(undefined)
+                    cur._resolve(cur.data)
                 }
 
                 else {
@@ -295,6 +296,11 @@ export default {
                         }
 
                         else {
+
+                            // считаем, что если при создании объекта данных не определили значение
+                            // по умолчанию, то мы его можем доопределять прозже
+                            if (obj.default && !data_obj._default) data_obj._default = obj.default
+                            
                             if (obj.default && (stringify(data_obj._default) != stringify(obj.default))) 
                                 throw new Error('для одного и того же объекта данных может быть только одно значение по умолчанию до загрузки данных')
                         }
@@ -384,6 +390,11 @@ export default {
                         reqs_queue.push(data_obj)
                     }
                     else {
+
+                        // считаем, что если при создании объекта данных не определили значение
+                        // по умолчанию, то мы его можем доопределять прозже
+                        if (obj.default && !data_obj._default) data_obj._default = obj.default
+
                         if (obj.default && (stringify(data_obj._default) != stringify(obj.default))) 
                             throw new Error('для одного и того же объекта данных может быть только одно значение по умолчанию до загрузки данных')
                     }
