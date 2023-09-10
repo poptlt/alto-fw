@@ -90,8 +90,6 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
                 ctx.tsn = await ydb.tsn()
 
-                await handler(ctx, data)
-
                 await ctx.tsn.query(`
 
                     UPSERT INTO user_invitos(object, invito, deleted)
@@ -102,10 +100,13 @@ module.exports = function({app, ydb, auth, ref_key}) {
                         SELECT $user AS object, $invito AS invito, FALSE AS deleted
                 `, {session, invito, user})
 
+                await handler(ctx, data)
+
                 let success = invito_types[type].success
 
                 await ctx.tsn.commit()
-                
+                delete ctx.tsn
+
                 return success ? await success(ctx, data) : 'Приглашение успешно исполнено!'
             }
         }
