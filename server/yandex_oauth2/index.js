@@ -64,7 +64,6 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
                 if (!invito_data) throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой приглашения'}
 
-
                 const type = invito_data.type
                 const date = new Date(invito_data.date)
                 const data = invito_data.data
@@ -90,6 +89,8 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
                 ctx.tsn = await ydb.tsn()
 
+                await handler(ctx, data)
+
                 await ctx.tsn.query(`
 
                     UPSERT INTO user_invitos(object, invito, deleted)
@@ -99,8 +100,6 @@ module.exports = function({app, ydb, auth, ref_key}) {
                         UNION ALL
                         SELECT $user AS object, $invito AS invito, FALSE AS deleted
                 `, {session, invito, user})
-
-                await handler(ctx, data)
 
                 let success = invito_types[type].success
 

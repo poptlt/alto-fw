@@ -54,7 +54,6 @@ module.exports = class {
             await drv.tableClient.withSession(async (session) => {
     
                 result = await exec_query({session, query, params, one_row, one_col})
-                
             })
 
             return result
@@ -72,13 +71,20 @@ module.exports = class {
                 _reject = reject
             })
 
+            let c_resolve, c_reject
+
             const drv = await driver()
 
-            await drv.tableClient.withSession(async (session) => {
+            drv.tableClient.withSession(async (session) => {
 
                 const txMeta = await session.beginTransaction({serializableReadWrite: {}})
 
                 _resolve({session, tx_meta: {txId: txMeta.id}})
+
+                await new Promise((resolve, reject) => {
+                    c_resolve = resolve
+                    c_reject = reject
+                })
             })
 
             const {session, tx_meta} = await data
@@ -89,33 +95,32 @@ module.exports = class {
 
                     if (closed) throw new Error('транзакция уже закрыта')
 
-                    let _resolve, _reject
-                    queries.push(new Promise((resolve, reject) => { 
-                        _resolve = resolve 
-                        _reject = reject
-                    }))
+                    await Promise.all(queries)
 
-                    if (queries.length > 1) await queries[queries.length - 2]                    
+                    let res = new Promise(async (resolve, reject) => {
 
-                    let result
-                    try {
+                        let result
+                        try {
+    
+                            result = await exec_query({
+                                session, 
+                                query, 
+                                params, 
+                                tx_meta, 
+                                one_row, one_col
+                            })
+    
+                            resolve(result)
+                        }  
+                        catch(err) { 
+                            console.log({err})                    
+                            reject(err) 
+                        }                                              
+                    })
 
-                        result = await exec_query({
-                            session, 
-                            query, 
-                            params, 
-                            tx_meta, 
-                            one_row, one_col
-                        })
+                    queries.push(res)
 
-                        _resolve(result)
-                    }
-                    catch(err) { 
-console.log({err})                    
-                        _reject(err) 
-                    }
-
-                    return result
+                    return res 
                 },
 
                 commit: async () => {
@@ -125,6 +130,7 @@ console.log({err})
 
                     await Promise.all(queries)
                     await session.commitTransaction(tx_meta)
+                    c_resolve()
                 },
 
                 rollback: async () => {
@@ -134,6 +140,7 @@ console.log({err})
 
                     await Promise.all(queries)
                     await session.rollbackTransaction(tx_meta)
+                    c_resolve()
                 }
             }
         }
