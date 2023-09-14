@@ -96,7 +96,7 @@ module.exports = function({app, ydb, ref_key, bucket, accessKeyId, secretAccessK
         
         const command = new objs.PutObjectCommand({ 
             Bucket: bucket, 
-            Key: ext ? `${file_ref}.${ext}` : file_ref,
+            Key: ext ? `${ref}.${ext}` : ref,
         })
 
         const url = await objs.getSignedUrl(objs.s3Client, command, { expiresIn: 10 })  
