@@ -29,13 +29,13 @@ export default function request(url) {
 
                 if (res.data.error) resolve({error: res.data.error})
 
-                else if (file && res.data.put_file) {
+                else if (file && res.data.put_url) {
 
                     try {
 
                         await Axios({
                             method: 'put',
-                            url: res.data.put_file,
+                            url: res.data.put_url,
                             data: file,
                             contentType: 'application/octet-stream',
                         })
@@ -53,7 +53,7 @@ export default function request(url) {
                     }
                 }
 
-                
+                else resolve( {result: res.data.result} )
             }
             
             catch(err) {

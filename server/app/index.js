@@ -145,7 +145,7 @@ module.exports = new Proxy({}, {
             try { 
                 
                 let answer = {result: await handler(ctx, ...params)}
-                if (file) answer.put_file = ctx.put_file
+                if (file) answer.put_url = ctx.put_url
                 
                 return answer 
             }

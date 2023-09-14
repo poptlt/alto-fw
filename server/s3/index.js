@@ -103,13 +103,13 @@ module.exports = function({app, ydb, ref_key, bucket, accessKeyId, secretAccessK
         
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
 
-        tsn.query(`
+        await tsn.query(`
 
             INSERT INTO files(ref, user, date, data, ext)
             VALUES($ref, $user, CurrentUtcDatetime(), CAST($file AS JsonDocument), $ext)
         `, {ref, user, file, ext})
 
-        if (!ctx.tsn) tsn.commit()
+        if (!ctx.tsn) await tsn.commit()
 
         ctx.put_url = url
         return ref
