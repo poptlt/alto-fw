@@ -142,7 +142,13 @@ module.exports = new Proxy({}, {
                 }, new Proxy(function() {return {handler, method: []}}, exec))
             }
 
-            try { return {result: await handler(ctx, ...params)} }
+            try { 
+                
+                let answer = {result: await handler(ctx, ...params)}
+                if (file) answer.put_file = ctx.put_file
+                
+                return answer 
+            }
             
             catch(error) {
 
