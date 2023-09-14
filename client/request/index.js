@@ -29,7 +29,7 @@ export default function request(url) {
 
                 if (res.data.error) resolve({error: res.data.error})
 
-                if (file && res.data.put_file) {
+                else if (file && res.data.put_file) {
 
                     try {
 
@@ -39,6 +39,8 @@ export default function request(url) {
                             data: file,
                             contentType: 'application/octet-stream',
                         })
+
+                        resolve( {result: res.data.result} )
                     }
 
                     catch(err) {
@@ -51,7 +53,7 @@ export default function request(url) {
                     }
                 }
 
-                resolve( {result: res.data.result} )
+                
             }
             
             catch(err) {
