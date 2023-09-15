@@ -95,10 +95,13 @@ module.exports = class {
 
                     if (closed) throw new Error('транзакция уже закрыта')
 
-                    await Promise.all(queries)
+                    // await Promise.all(queries)
 
                     let res = new Promise(async (resolve, reject) => {
 
+                        let prima = queries.filter(item => item != res)
+                        await Promise.all(prima)
+                        
                         let result
                         try {
     
