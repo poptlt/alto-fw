@@ -97,11 +97,12 @@ module.exports = class {
 
                     // await Promise.all(queries)
 
-                    let res = new Promise(async (resolve, reject) => {
+                    let res 
+                    res = new Promise(async (resolve, reject) => {
 
                         let prima = queries.filter(item => item != res)
                         await Promise.all(prima)
-                        
+
                         let result
                         try {
     
