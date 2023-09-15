@@ -95,8 +95,6 @@ module.exports = class {
 
                     if (closed) throw new Error('транзакция уже закрыта')
 
-                    // await Promise.all(queries)
-
                     let res 
                     res = new Promise(async (resolve, reject) => {
 
