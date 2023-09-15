@@ -95,7 +95,7 @@ module.exports = class {
 
                     if (closed) throw new Error('транзакция уже закрыта')
 
-                    let res 
+                    let res  
                     res = new Promise(async (resolve, reject) => {
 
                         let prima = queries.filter(item => item != res)
