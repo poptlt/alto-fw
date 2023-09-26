@@ -12,7 +12,7 @@ module.exports = function({app, ydb, ref_key, bucket, accessKeyId, secretAccessK
     
                     else if (key == 'getSignedUrl') target[key] = require('@aws-sdk/s3-request-presigner')[key]
     
-                    else if (key == 'mime') target[key] = require('@aws-sdk/s3-request-presigner')
+                    else if (key == 'mime') target[key] = require('mime-types')
     
                     else if (key == 'uuidv4') target[key] = require('uuid').v4
 
