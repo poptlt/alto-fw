@@ -41,11 +41,11 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
             let session = ref('session', ctx.session)
             let user  = await app.auth.current_user(ctx)
-
+           
             if (!user) await ydb.query(`
 
                 UPSERT INTO user_invitos(object, invito, deleted)
-                    VALUES ($session, $invito, FALSE)
+                VALUES ($session, $invito, FALSE)
             `, {session, invito})
 
             else {
@@ -89,8 +89,6 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
                 ctx.tsn = await ydb.tsn()
 
-                await handler(ctx, data)
-
                 await ctx.tsn.query(`
 
                     UPSERT INTO user_invitos(object, invito, deleted)
@@ -100,6 +98,8 @@ module.exports = function({app, ydb, auth, ref_key}) {
                         UNION ALL
                         SELECT $user AS object, $invito AS invito, FALSE AS deleted
                 `, {session, invito, user})
+
+                await handler(ctx, data)
 
                 let success = invito_types[type].success
 
@@ -173,17 +173,22 @@ module.exports = function({app, ydb, auth, ref_key}) {
                 session_ref,
                 yandex_token: access_token,
             })
-/*
+
             let invitos = await ydb.query(`
 
                 SELECT invito FROM user_invitos
                     WHERE object = $session_ref AND NOT deleted
-            `, {session_ref})
+            `, {session_ref}, 0, 1)
 
-            let messages = await Promise.all(invitos.map(async item => app.env.invito.apply(ctx, item.invito)))
-            messages = messages.filter(item => item != undefined)
+            let messages = []
+
+            for (inv of invitos) {
+
+                let res = await invito.apply(ctx, inv)
+                if (res) messages.push(res)
+            }
+
             return messages
-*/
         },
 
         logout: async function(ctx) {
