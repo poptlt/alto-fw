@@ -45,7 +45,7 @@ module.exports = function({app, ydb, auth, ref_key}) {
             if (!user) await ydb.query(`
 
                 UPSERT INTO user_invitos(object, invito, deleted)
-                VALUES (session, invito, FALSE)
+                    VALUES ($session, $invito, FALSE)
             `, {session, invito})
 
             else {
