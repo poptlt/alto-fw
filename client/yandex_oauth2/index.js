@@ -34,8 +34,6 @@ export default {
                     if (invito) {
 
                         let res = await req({method: 'auth.apply_invito', params: [invito]})
-                        if (on_message) on_message(res.result)
-                        else console.log(res.result)
 
                         if (res.error) {
                             if (on_error) on_error(res.error)
@@ -43,6 +41,11 @@ export default {
                         }
 
                         else {
+
+                            if (res.result) {
+                                if (on_message) on_message(res.result)
+                                else console.log(res.result)
+                            }
 
                             url.searchParams.delete('invito')
                             window.history.replaceState(null, null, url)       
