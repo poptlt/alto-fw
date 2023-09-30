@@ -86,7 +86,7 @@ module.exports = function({app, ydb, ref_key, bucket, accessKeyId, secretAccessK
 
         if (!user) throw {code: 'SYSTEM', message: 'Не определен пользователь - автор записи файла'}
 
-        let ext = null
+        let ext = ''
         if (file.name) {
 
             let arr = file.name.split('.')
@@ -106,7 +106,16 @@ module.exports = function({app, ydb, ref_key, bucket, accessKeyId, secretAccessK
         await tsn.query(`
 
             INSERT INTO files(ref, user, date, data, ext)
-            VALUES($ref, $user, CurrentUtcDatetime(), CAST($file AS JsonDocument), $ext)
+                VALUES(
+                    $ref, 
+                    $user, 
+                    CurrentUtcDatetime(), 
+                    CAST($file AS JsonDocument), 
+                    CASE 
+                        WHEN $ext = '' THEN NULL 
+                        ELSE $ext 
+                    END
+                )
         `, {ref, user, file, ext})
 
         if (!ctx.tsn) await tsn.commit()
