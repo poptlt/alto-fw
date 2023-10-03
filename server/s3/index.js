@@ -99,7 +99,7 @@ module.exports = function({app, ydb, ref_key, bucket, accessKeyId, secretAccessK
             Key: ext ? `${ref}.${ext}` : ref,
         })
 
-        const url = await objs.getSignedUrl(objs.s3Client, command, { expiresIn: 10 })  
+        const url = await objs.getSignedUrl(objs.s3Client, command, { expiresIn: 100 })  
         
         const tsn = ctx.tsn ? ctx.tsn : await ydb.tsn()
 
