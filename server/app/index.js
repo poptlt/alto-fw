@@ -94,7 +94,7 @@ const exec = {
     }
 }
 
-module.exports = new Proxy({}, {
+const app = new Proxy({}, {
 
     get(target, prop) {
 
@@ -109,6 +109,8 @@ module.exports = new Proxy({}, {
             if (!Array.isArray(params)) params = [params]
 
             function ext_error(err) {
+
+                
 // проверяем, можно ли отправлять полную информацию об ошибке
 //
 
@@ -172,3 +174,5 @@ module.exports = new Proxy({}, {
         }
     }
 })
+
+module.exports = app
