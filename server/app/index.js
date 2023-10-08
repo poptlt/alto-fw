@@ -108,13 +108,18 @@ const app = new Proxy({}, {
 
             if (!Array.isArray(params)) params = [params]
 
-            function ext_error(err) {
+            async function ext_error(ctx, err) {
 
-                
-// проверяем, можно ли отправлять полную информацию об ошибке
-//
+                let is_developer = false
 
-                return err
+                if (app.exists('auth')) is_developer = await app.auth.is_developer(ctx)
+
+                if (is_developer) return err
+                else {
+
+                    let data = {...err.error}
+                    return {error: {code: data.code, message: data.message}}
+                }
             }
 
             let ctx = {
@@ -133,10 +138,10 @@ const app = new Proxy({}, {
                 handler = handlers[first]
             }
             catch(error) {
-                return ext_error({code: 'SYSTEM', message: 'Что-то не то с параметрами вызова', origin: {name: error.name, message: error.message}})
+                return await ext_error(ctx, {code: 'SYSTEM', message: 'Что-то не то с параметрами вызова', origin: {name: error.name, message: error.message}})
             }
 
-            if (!handler) return ext_error({error: {code: 'SYSTEM', message: `Функция ${first} не существует`}})
+            if (!handler) return await ext_error(ctx, {error: {code: 'SYSTEM', message: `Функция ${first} не существует`}})
             
             if (method_arr.length > 0) {
                 handler = method_arr.reduce((res, item) => {
@@ -154,15 +159,15 @@ const app = new Proxy({}, {
             
             catch(error) {
 
-                if (typeof error == 'string') return ext_error({error: {code: 'FOR_USER', message: error}})
+                if (typeof error == 'string') return await ext_error(ctx, {error: {code: 'FOR_USER', message: error}})
                     
                 else if (typeof error == 'object') {
                 
-                    if (error instanceof Error) return ext_error({error: {code: 'SYSTEM', origin: {name: error.name, message: error.message}}})
-                    else return ext_error({error})
+                    if (error instanceof Error) return await ext_error(ctx, {error: {code: 'SYSTEM', origin: {name: error.name, message: error.message}}})
+                    else return await ext_error(ctx, {error})
                 }  
                 
-                else return ext_error({error: {code: 'SYSTEM', origin: error}})
+                else return await ext_error(ctx, {error: {code: 'SYSTEM', origin: error}})
             }
         }
 
