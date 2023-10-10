@@ -116,7 +116,7 @@ const app = new Proxy({}, {
 
                 if (is_developer) return err
                 else {
-
+console.log({err})
                     let data = {...err.error}
                     return {error: {code: data.code, message: data.message}}
                 }
