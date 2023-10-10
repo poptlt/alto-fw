@@ -11,6 +11,7 @@ CREATE TABLE users (
 CREATE TABLE sessions (
     ref Utf8 NOT NULL,
     user Utf8,
+    yandex_token Utf8,
     PRIMARY KEY (ref),
     INDEX idx_user GLOBAL ON (user)
 );
