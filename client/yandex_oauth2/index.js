@@ -2,22 +2,62 @@ import request from '@alto-fw/request'
 
 export default {
 
-    install: (Vue, {url, auth_only, on_message, on_error}) => {
+    install: (Vue, {url, authorization, on_message, on_error, handler, auth_handler}) => {
 
         const req = request(url)
 
-        const alto = {
+        let params = {}
+
+        const auth = {
+
+            state: null,
 
             async login() {
 
-                let yandex_url = await req({method: 'auth.yandex_oauth2_url'})
-                if (yandex_url.result) window.location = yandex_url.result                
+                let res = await req({method: 'auth.yandex_oauth2_url'})
+
+                if (res.error) {
+
+                    on_error(`Ошибка при авторизации (${res.error.message})`)
+                    throw res.error
+                }
+
+                else {
+
+                    localStorage.url_params = JSON.stringify(params)
+                    window.location = res.result        
+                }        
             },
 
             async logout() {
 
                 let res = await req({method: 'auth.logout', params: []})
-                window.location.reload()
+                if (res.error) {
+
+                    on_error(`Ошибка при авторизации (${res.error.message})`)
+                    throw res.error
+                }
+                else window.location.reload()
+            }
+        }
+
+        const invito_exec = async () => {
+
+            if (auth.state == 'is_authorized' && params.invito) {
+
+                let res = await req({method: 'auth.apply_invito', params: [params.invito]})
+
+                if (res.error) {
+
+                    on_error(`Не удалось исполнить приглашение (${res.error.message})`)
+                    throw res.error
+                }
+
+                else {
+
+                    on_message(res.result)
+                    delete params.invito
+                }
             }
         }
 
@@ -29,70 +69,79 @@ export default {
 
                     let url = new URL(window.location.href)
 
-                    const invito = url.searchParams.get('invito')
-                    
-                    if (invito) {
+                    params = Object.fromEntries(url.searchParams)
 
-                        let res = await req({method: 'auth.apply_invito', params: [invito]})
+                    Object.keys(params).forEach(key => url.searchParams.delete(key))
+                    
+                    window.history.replaceState(null, null, url)       
+
+                    if (params.from_yandex_auth) {
+
+                        auth.state = 'authorization'
+
+                        let res = await req({method: 'auth.yandex_oauth2_login', params: [params.code]})
 
                         if (res.error) {
-                            if (on_error) on_error(res.error)
-                            else console.log('error', res.error)
+
+                            on_error(`Ошибка при авторизации (${res.error.message})`)
+                            throw res.error
+                        }
+
+                        else {
+
+                            if (localStorage.url_params) params = JSON.parse(localStorage.url_params)
+
+                            await invito_exec()
+
+                            auth.state = 'is_authorized'
+                            if (authorization) authorization()
+                        }
+
+                    }
+
+                    if (!auth.state) {
+
+                        let res = await req({method: 'auth.is_authorised'})
+
+                        if (res.error) {
+
+                            on_error(`Ошибка при авторизации (${res.error.message})`)
+                            throw res.error
                         }
 
                         else {
 
                             if (res.result) {
-                                if (on_message) on_message(res.result)
-                                else console.log(res.result)
+
+                                await invito_exec()
+                                auth.state = 'is_authorized'
+                                if (authorization) authorization()
                             }
 
-                            url.searchParams.delete('invito')
-                            window.history.replaceState(null, null, url)       
+                            else auth.state = 'not_authorized'
                         }
                     }
 
-                    if (url.searchParams.get('from_yandex_auth')) {
-                
-                        let code = url.searchParams.get('code')
-                
-                        let res = await req({method: 'auth.yandex_oauth2_login', params: [code]})
-                        if (on_message) {
-                            if (Array.isArray(res.result)) res.result.forEach(item => on_message(item))    
-                            else on_message(res.result)
-                        }
-                        else console.log(res.result)
+                    await invito_exec()
 
-                        if (res.error) {
-                            if (on_error) on_error(res.error)
-                            else console.log('error', res.error)
-                        }
-                        else {
-                            url.searchParams.delete('from_yandex_auth')
-                            url.searchParams.delete('code')
-                            window.history.replaceState(null, null, url)
-                            window.location.reload()
-                        }
-                    }
+                    Object.keys(params).forEach(key => {
 
-                    else {
+                        let func 
 
-                        let is_authorised = await req({method: 'auth.is_authorised'})
-                        
-                        if (is_authorised.result === false && auth_only) alto.login()
-                    }
+                        if (auth.state == 'is_authorized' && auth_handler) func = auth_handler[key]
+                        if (auth.state == 'not_authorized' && handler) func = handler[key]
 
-
+                        if (func) func.call(this, params[key]) 
+                    })
                 }
             },
 
             data() {
 
                 return {
-                    alto,
+                    auth,
                 }
             },
         })
     }
-
 }
