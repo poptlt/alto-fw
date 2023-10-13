@@ -39,75 +39,63 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
             ctx.external = false
 
-            let session = ref('session', ctx.session)
             let user  = await app.auth.current_user(ctx)
            
-            if (!user) await ydb.query(`
+            if (!user) throw {code: 'SYSTEM', message: 'Должен быть определен пользователь для приглашения'}
 
-                UPSERT INTO user_invitos(object, invito, deleted)
-                VALUES ($session, $invito, FALSE)
-            `, {session, invito})
+            let invt = await ydb.query(`
+            
+                SELECT invito FROM user_invitos
+                    WHERE user = $user AND invito = $invito
+            `, {user, invito}, 1, 1)
 
-            else {
+            if (invt) return undefined
 
-                let invt = await ydb.query(`
+            let invito_data = await ydb.query(`
+                SELECT * FROM invitos WHERE ref = $invito
+            `, {invito}, 1)
+
+            if (!invito_data) throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой приглашения'}
+
+            const type = invito_data.type
+            const date = new Date(invito_data.date)
+            const data = invito_data.data
+            const handler = invito_types[type].handler
+
+            let interval = new Date() - date
+
+            let expire_interval = invito_types[type].expire ? invito_types[type].expire : 7
+            expire_interval = expire_interval * 1000 * 60 * 60 * 24
+
+            if (interval > expire_interval) throw 'Срок действия приглашения истек!' 
+
+            if (!invito_types[type].multi) {
                 
-                    SELECT invito FROM user_invitos
-                        WHERE object = $user AND invito = $invito AND NOT deleted
-                `, {user, invito}, 1, 1)
+                let users = await ydb.query(`
+                
+                    SELECT user FROM user_invitos VIEW idx_invito
+                    WHERE invito = $invito AND user <> $user 
+                `, {invito, user}, 0, 1)
 
-                if (invt) return undefined
-
-                let invito_data = await ydb.query(`
-                    SELECT * FROM invitos WHERE ref = $invito
-                `, {invito}, 1)
-
-                if (!invito_data) throw {code: 'SYSTEM', message: 'Что-то не то со ссылкой приглашения'}
-
-                const type = invito_data.type
-                const date = new Date(invito_data.date)
-                const data = invito_data.data
-                const handler = invito_types[type].handler
-
-                let interval = new Date() - date
-
-                let expire_interval = invito_types[type].expire ? invito_types[type].expire : 7
-                expire_interval = expire_interval * 1000 * 60 * 60 * 24
-
-                if (interval > expire_interval) return 'Срок действия приглашения истек!' 
-
-                if (!invito_types[type].multi) {
-                    
-                    let users = await ydb.query(`
-                    
-                        SELECT object FROM user_invitos VIEW idx_invito
-                        WHERE invito = $invito AND object <> $user AND object LIKE 'user_%' AND NOT deleted
-                    `, {invito, user}, 0, 1)
-
-                    if (users.length) return 'Приглашение уже использованно другим пользователем!'                    
-                }
-
-                ctx.tsn = await ydb.tsn()
-
-                await ctx.tsn.query(`
-
-                    UPSERT INTO user_invitos(object, invito, deleted)
-                        SELECT object, invito, TRUE AS deleted 
-                            FROM user_invitos 
-                            WHERE object = $session AND invito = $invito
-                        UNION ALL
-                        SELECT $user AS object, $invito AS invito, FALSE AS deleted
-                `, {session, invito, user})
-
-                await handler(ctx, data)
-
-                let success = invito_types[type].success
-
-                await ctx.tsn.commit()
-                delete ctx.tsn
-
-                return success ? await success(ctx, data) : 'Приглашение успешно исполнено!'
+                if (users.length) throw 'Приглашение уже использованно другим пользователем!'                    
             }
+
+            ctx.tsn = await ydb.tsn()
+
+            await ctx.tsn.query(`
+
+                INSERT INTO user_invito(user, invito)
+                    VALUES ($user, $invito)
+            `, {invito, user})
+
+            await handler(ctx, data)
+
+            let success = invito_types[type].success
+
+            await ctx.tsn.commit()
+            delete ctx.tsn
+
+            return success ? await success(ctx, data) : 'Приглашение успешно исполнено!'
         }
     }
 
@@ -173,22 +161,6 @@ module.exports = function({app, ydb, auth, ref_key}) {
                 session_ref,
                 yandex_token: access_token,
             })
-
-            let invitos = await ydb.query(`
-
-                SELECT invito FROM user_invitos
-                    WHERE object = $session_ref AND NOT deleted
-            `, {session_ref}, 0, 1)
-
-            let messages = []
-
-            for (inv of invitos) {
-
-                let res = await invito.apply(ctx, inv)
-                if (res) messages.push(res)
-            }
-
-            return messages
         },
 
         logout: async function(ctx) {

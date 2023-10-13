@@ -35,10 +35,9 @@ CREATE TABLE invitos (
 );
 
 CREATE TABLE user_invitos (
-    object Utf8 NOT NULL,
+    user Utf8 NOT NULL,
     invito Utf8 NOT NULL,
-    deleted Bool,
-    PRIMARY KEY (object, invito),
+    PRIMARY KEY (user, invito),
     INDEX idx_invito GLOBAL ON (invito)
 );
 

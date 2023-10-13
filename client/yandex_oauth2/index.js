@@ -55,7 +55,7 @@ export default {
 
                 else {
 
-                    on_message(res.result)
+                    if (res.result) on_message(res.result)
                     delete params.invito
                 }
             }
