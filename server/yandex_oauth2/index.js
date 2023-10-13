@@ -84,7 +84,7 @@ module.exports = function({app, ydb, auth, ref_key}) {
 
             await ctx.tsn.query(`
 
-                INSERT INTO user_invito(user, invito)
+                INSERT INTO user_invitos(user, invito)
                     VALUES ($user, $invito)
             `, {invito, user})
 
