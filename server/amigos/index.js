@@ -268,6 +268,20 @@ module.exports = function({app, ydb, ref_key, ydb_action, invito}) {
             undef: []
         })
 
+        ref_key.key('user', 'amigos_list', {
+            query: `
+
+                SELECT ref, Unicode::JoinFromList(AGG_LIST(amigo), ",") AS amigos_list
+                    FROM (
+                        SELECT user AS ref, amigo
+                            FROM amigos WHERE user IN $refs
+                    ) t 
+                GROUP BY ref                                   
+            `,
+            out(data) { return data.split(',') },
+            undef: []
+        })            
+
         ref_key.key('amigo_group', 'amigos', {
             query: `
                 SELECT ref, Unicode::JoinFromList(AGG_LIST(amigo), ",") AS amigos
