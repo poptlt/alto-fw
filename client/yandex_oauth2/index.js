@@ -124,14 +124,14 @@ export default {
 
                     await invito_exec()
 
-                    Object.keys(params).forEach(key => {
+                    Object.keys(params).forEach(async key => {
 
                         let func 
 
                         if (auth.state == 'is_authorized' && auth_handler) func = auth_handler[key]
                         if (auth.state == 'not_authorized' && handler) func = handler[key]
 
-                        if (func) func.call(this, params[key]) 
+                        if (func) await func.call(this, JSON.parse(params[key])) 
                     })
                 }
             },
