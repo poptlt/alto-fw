@@ -51,7 +51,7 @@ module.exports = class {
 
             const drv = await driver()
 
-            await drv.tableClient.withSession(async (session) => {
+            await drv.tableClient.withSessionRetry(async (session) => {
     
                 result = await exec_query({session, query, params, one_row, one_col})
             })
@@ -75,7 +75,7 @@ module.exports = class {
 
             const drv = await driver()
 
-            drv.tableClient.withSession(async (session) => {
+            drv.tableClient.withSessionRetry(async (session) => {
 
                 const txMeta = await session.beginTransaction({serializableReadWrite: {}})
 
