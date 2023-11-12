@@ -5,16 +5,19 @@ function ref_type(ref) { return ref.substring(0, ref.length - 37) }
 
 function get_root(component) { return component.$parent ? get_root(component.$parent) : component }
 
-function data_objects_plus(component) {
+function data_objects_plus(component, handler) {
 
     let res = new Set(component.data_objects)
 
     function add(cur) {
 
-      cur.$children.forEach(component => {
-        component.data_objects.forEach(obj => res.add(obj))
-        add(component)
-      })
+        cur.$children.forEach(component => {
+
+            if (!handler || (handler && !component[handler])) {
+                component.data_objects.forEach(obj => res.add(obj))
+                add(component)
+            }
+        })
     }
 
     add(component)
@@ -82,7 +85,10 @@ export default {
 
                     // при ошибке в данные подставляем значение по умолчанию
                     cur.data = cur._default
-                    cur.error = res.error
+                    
+                    // если есть обработчик ошибки, то пропускаем ошибку с сервера через него
+                    cur.error = cur._error_handler ? cur._error_handler(res.error) : res.error
+                    
                     cur._resolve(cur.data)
                 }
 
@@ -181,7 +187,9 @@ export default {
 
                             loading: function() {
 
-                                return !!(data_objects_plus(obj.ctx)
+                                if (!obj.ctx.loading_handler) obj.ctx.loading_handler = true
+
+                                return !!(data_objects_plus(obj.ctx, 'loading_handler')
                                     .map(item => item.loading)
                                     .filter(item => !!item)
                                     .length)
@@ -189,7 +197,9 @@ export default {
 
                             errors: function() {
 
-                                return data_objects_plus(obj.ctx)
+                                if (!obj.ctx.error_handler) obj.ctx.error_handler = true
+
+                                return data_objects_plus(obj.ctx, 'error_handler')
                                     .map(item => item.error)
                                     .filter(item => !!item)
                             },
@@ -203,6 +213,8 @@ export default {
                     else if (prop == 'timeout') obj.wait_arg = 'timeout'
 
                     else if (prop == 'file') obj.wait_arg = 'file'
+
+                    else if (prop == 'error') obj.wait_arg = 'error'
 
                     else if (prop == 'view' ) {
                         obj.type = 'view'
@@ -236,8 +248,16 @@ export default {
                 if (obj.wait_arg) {
 
                     if (obj.wait_arg == 'timeout') obj.timeout = args[0]
+                    
                     else if (obj.wait_arg == 'file') obj.file = args[0]
+                    
+                    else if (obj.wait_arg == 'error') {
+                        if (typeof args[0] == 'function') obj.error_handler = args[0]
+                        else throw new Error('Аргументом ключа error должна быть функция')
+                    }
+
                     else if (obj.wait_arg == 'view') obj.default = args[0]
+                    
                     else if (obj.wait_arg == 'ref') obj.ref = args[0]
                     
                     else if (obj.wait_arg == 'ref_key') {
@@ -330,6 +350,7 @@ export default {
                         _params: params,
                         _file: obj.file,
                         _timeout: obj.timeout,
+                        _error_handler: obj.error_handler,
                         _date: undefined,
                         loading: true,
                         promise,
@@ -413,6 +434,7 @@ export default {
                         _params: params,
                         _file: obj.file,
                         _timeout: obj.timeout,
+                        _error_handler: obj.error_handler,
                         _date: undefined,
                         loading: true,
                         promise,
