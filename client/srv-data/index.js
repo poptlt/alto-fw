@@ -86,7 +86,7 @@ export default {
                     // при ошибке в данные подставляем значение по умолчанию
                     cur.data = cur._default
                     
-                    if (res.error.code == 'SYSTEM') res.error.message = 'Системная ошибка'
+                    if (res.error.code == 'SYSTEM' || !res.error.message) res.error.message = 'Системная ошибка'
 
                     // если есть обработчик ошибки, то пропускаем ошибку с сервера через него
                     cur.error = cur._error_handler ? cur._error_handler(res.error) : res.error
