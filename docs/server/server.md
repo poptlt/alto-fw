@@ -7,4 +7,4 @@ has_toc: false
 ---
 
 # 456
-qqqq [app](#app)
+qqqq [app]({% link server/app.md %})
