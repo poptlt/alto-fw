@@ -1,7 +1,7 @@
 ---
 layout: default
 title: app
-parent: Сервер
+parent: Server
 nav_order: 1
 ---
 
