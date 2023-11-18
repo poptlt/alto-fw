@@ -9,4 +9,4 @@ has_toc: false
 # 4567
 [app]({% link server/app.md %}) 
 
-app [app](server/app.md)
+app [app](@/server/app.md)
