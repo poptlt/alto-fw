@@ -16,7 +16,7 @@ nav_order: 1
 **const app = require('@alto-fw/app')**
 
 Объявляем вызов **sum**:
-```
+```javascript
 app.add('sum', async function(ctx, a, b) {
 
     return a + b
