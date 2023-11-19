@@ -9,7 +9,7 @@ nav_order: 1
 
 Установка:
 
-> npm install 'https://gitpkg.now.sh/poptlt/alto-fw/server/app?master'
+> **npm install 'https://gitpkg.now.sh/poptlt/alto-fw/server/app?master'**
 
 Подключаем модуль:
 
