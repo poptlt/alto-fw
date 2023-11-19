@@ -9,11 +9,11 @@ nav_order: 1
 
 Установка:
 
-    **npm install 'https://gitpkg.now.sh/poptlt/alto-fw/server/app?master'**
+> npm install 'https://gitpkg.now.sh/poptlt/alto-fw/server/app?master'
 
 Подключаем модуль:
 
-    **const app = require('@alto-fw/app')**
+**const app = require('@alto-fw/app')**
 
 Объявляем вызов **sum**:
 ```
@@ -30,13 +30,13 @@ app.add('sum', async function(ctx, a, b) {
 **app.sum(ctx, 1, 2)**
 
 ```
-    app.add('auth', async function(ctx) {
+app.add('auth', async function(ctx) {
 
-        let method = ctx.method
-        ctx.method = undefined
-        let handler = handlers[method]
-        if (!handler) throw {code: 'SYSTEM', message: `У модуля auth нет функции ${method}`}
+    let method = ctx.method
+    ctx.method = undefined
+    let handler = handlers[method]
+    if (!handler) throw {code: 'SYSTEM', message: `У модуля auth нет функции ${method}`}
 
-        return handler(...arguments)
-    })
+    return handler(...arguments)
+})
 ```
