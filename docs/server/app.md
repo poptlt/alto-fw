@@ -13,7 +13,7 @@ nav_order: 1
 
 Подключаем модуль:
 
-**const app = require('@alto-fw/app')**
+> **const app = require('@alto-fw/app')**
 
 Объявляем вызов **sum**:
 ```javascript
