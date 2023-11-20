@@ -9,7 +9,7 @@ nav_order: 1
 На данный момент фреймворк не выложен на NPM, предполагается, что модули можно устанавливать прямо с GitHub с 
 помощью сервиса [https://gitpkg.vercel.app/](https://gitpkg.vercel.app/)
 
-Модули [сервера]({% link server/server.md %})
+Модули [сервера]({% link server.md %})
 
-Модули [клиента]({% link client/client.md %})
+Модули [клиента]({% link client.md %})
 
