@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Друзья
+title: amigos
 parent: Сервер
 nav_order: 9
 ---
