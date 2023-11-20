@@ -27,7 +27,7 @@ app.add('sum', async function(ctx, a, b) {
 
 Вызываем метод **sum** внутри серверного приложения:
 
-> **app.sum(ctx, 1, 2)**
+> **let sum = app.sum(ctx, 1, 2)**
 
 
 
