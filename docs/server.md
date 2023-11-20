@@ -6,7 +6,11 @@ has_children: true
 has_toc: false
 ---
 
-# 4567
-[app]({% link server/app.md %}) 
+В рамках концепции фреймворка предполагается, что серверная часть оформляется ввиде 
+[функции в облаке Яндекса](https://cloud.yandex.ru/services/functions) с помощью соответствующего 
+[модуля]({% link server/yc_func.md %}).
 
-aaaapppppp [app](@/server/app.md)
+Для построения приложения используется модуль [app]({% link server/app.md %}).
+
+
+
