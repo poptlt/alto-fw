@@ -1,4 +1,4 @@
-async function exec_query({session, query, params, tx_meta, one_row = false, one_col = false}) {
+async function exec_query({session, query, params = {}, tx_meta, one_row = false, one_col = false}) {
 
     const {query: query_result, params: params_result} = require('./query_params')(query, params)
 
@@ -45,7 +45,7 @@ module.exports = class {
             }
         }    
 
-        this.query = async function(query, params, one_row = false, one_col = false) {
+        this.query = async function(query, params = {}, one_row = false, one_col = false) {
 
             let result
 
@@ -91,7 +91,7 @@ module.exports = class {
 
             return {
 
-                query: async (query, params, one_row = false, one_col = false) => {
+                query: async (query, params = {}, one_row = false, one_col = false) => {
 
                     if (closed) throw new Error('транзакция уже закрыта')
 
