@@ -50,6 +50,17 @@ nav_order: 2
 | JS | YDB |
 |----|-----|
 | boolean | Bool |
+| number в случае целого положительного (или ноль) числа | Uint64 |
+| number в случае целого отрицательного числа | Int64 |
+| number в остальных случаях | Double |
+| bigint положительный (или ноль) | Uint64 |
+| bigint отрицательный | Int64 |
+| string | Utf8 |
+| object в случае instanceof Date | Timestamp |
+| object в остальных случаях | Json |
+
+Другие типы JS вызывают ошибку
+
 
 
 
