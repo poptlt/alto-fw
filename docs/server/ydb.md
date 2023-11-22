@@ -5,7 +5,7 @@ parent: Сервер
 nav_order: 2
 ---
 
-Под концепцию фреймворка использовать Яндекс облако и его serverless сервисы в плане баз данных на данный момент 
+Под концепцию фреймворка использовать Яндекс облако и его serverless сервисы, в плане баз данных на данный момент 
 подходит только [YDB](https://cloud.yandex.ru/services/ydb). И этот модуль как раз попытка представить простой
 и удобный в использовании драйвер этой БД.
 
@@ -15,11 +15,11 @@ nav_order: 2
 
 Установка:
 
-> npm install 'https://gitpkg.now.sh/poptlt/alto-fw/server/ydb?master'
+> **npm install 'https://gitpkg.now.sh/poptlt/alto-fw/server/ydb?master'**
 
 Подключение:
 
-> const ydb = require('@alto-fw/ydb')
+> **const ydb = require('@alto-fw/ydb')**
 
 При инициализации драйвера необходимо передать ему базу данных и параметры сервисного аккаунта, у которого есть необходимые права на эту базу данных.
 
@@ -29,11 +29,11 @@ nav_order: 2
 
 > const connect = new ydb(dbName, {serviceAccount: {serviceAccountId, keyId, key}})
 
-, где dbName - имя БД в формате /ru-central1/.........
-, serviceAccountId - идентификатор сервисного аккаунта
-, keyId - идентификатор авторизованного ключа, созданного для данного сервисного аккаунта
-, key - собственно сам ключ
+, где **dbName** - имя БД в формате /ru-central1/.........
+, **serviceAccountId** - идентификатор сервисного аккаунта
+, **keyId** - идентификатор авторизованного ключа, созданного для данного сервисного аккаунта
+, **key** - собственно сам ключ
 
-В случае Yandex Cloud Function уже имеем на входе в контексте свежий IAM-токен и параметры сервисного аккаунта не нужны (необходимо только "привязать" сервисный аккаунт к функции, чтобы она имела соответствущие права): 
+А в случае [Yandex Cloud Function](https://cloud.yandex.ru/services/functions) уже имеем на входе в контексте свежий IAM-токен и параметры сервисного аккаунта не нужны (необходимо только "привязать" сервисный аккаунт к функции, чтобы она имела соответствущие права): 
 
-> const connect = new ydb(dbName, {iamToken: context.token.access_token})
+> **const connect = new ydb(dbName, {iamToken: context.token.access_token})**
