@@ -22,7 +22,7 @@ module.exports = function({data, app, cors_client}) {
 
         if (event.httpMethod == 'POST') {
 
-            if (!data.app) data.app = app(event, context)
+            if (!data.app) data.app = app(context)
 
             body = JSON.parse(event.body)
 
