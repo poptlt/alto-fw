@@ -31,7 +31,7 @@ app.add('sum', async function(ctx, a, b) {
 
 
 
-```
+```javascript
 app.add('auth', async function(ctx) {
 
     let method = ctx.method
