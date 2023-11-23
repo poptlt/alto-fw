@@ -77,7 +77,7 @@ nav_order: 2
 ```SQL
     SELECT col1, Unicode::JoinFromList(AGG_LIST(col2), ",") AS col2_str
         FROM table1
-        GROUP BY col1
+    GROUP BY col1
 ```
 
 Очень часто результатом запроса должна быть единственная строка, единственный столбец или вообще одно значение. 
