@@ -17,8 +17,8 @@ nav_order: 4
     const handler = require('@alto-fw/yc-func')
     const data = {}
     const cors_client = 'http...'
-    
-    const app = (event, context) => {
+
+    const app = (context) => {
 
         const app = require('@alto-fw/app')
 
