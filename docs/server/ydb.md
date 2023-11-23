@@ -74,7 +74,7 @@ nav_order: 2
 В остальных случаях необходимо явное приведение типа 
 (или преобразование данных к поддерживаемому типу) в тексте запроса:
 
-```JAVASCRIPT
+```SQL
     SELECT col1, Unicode::JoinFromList(AGG_LIST(col2), ",") AS col2_str
         FROM table1
         GROUP BY col1
