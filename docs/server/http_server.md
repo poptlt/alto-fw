@@ -14,7 +14,6 @@ nav_order: 3
 Используем примерно так:
 
 ```javascript
-
     const app = require('@alto-fw/app')
 
     // ...
