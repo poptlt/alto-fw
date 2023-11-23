@@ -1,16 +1,16 @@
 const http = require("http")
 const { v4: uuidv4 } = require('uuid')
 
-module.exports = function http_server({port, dev_client, app}) {
+module.exports = function http_server({port, cors_client, app}) {
 
     const server = http.createServer( async (req, res) => {
 
         let headers = {'Content-Type': 'application/json'}
-        if (dev_client) headers = {
+        if (cors_client) headers = {
             ...headers,
             'Access-Control-Allow-Methods': 'POST',
             'Access-Control-Allow-Headers': 'x-xsrf-token, Origin, Content-Type, X-Auth-Token, Set-Cookie, Cookie, Access-Control-Allow-Headers, Access-Control-Allow-Origin',
-            'Access-Control-Allow-Origin': dev_client,
+            'Access-Control-Allow-Origin': cors_client,
         }
         
         if (!(req.method == 'OPTIONS' || req.method == 'POST')) {
@@ -59,5 +59,5 @@ module.exports = function http_server({port, dev_client, app}) {
     server.listen(port)
 
     console.log(`Локальный сервер запущен на http://localhost:${port}`)
-    if (dev_client) console.log(`Запросы для отладки ожидаются с url ${dev_client}`) 
+    if (cors_client) console.log(`Запросы для отладки ожидаются с url ${cors_client}`) 
 }

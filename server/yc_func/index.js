@@ -1,15 +1,15 @@
 const { v4: uuidv4 } = require('uuid')
 
-module.exports = function({data, app, dev_client}) {
+module.exports = function({data, app, cors_client}) {
 
     return async function(event, context) {
 
         let headers = {'Content-Type': 'application/json'}
-        if (dev_client) headers = {
+        if (cors_client) headers = {
             ...headers,
             'Access-Control-Allow-Methods': 'POST',
             'Access-Control-Allow-Headers': 'x-xsrf-token, Origin, Content-Type, X-Auth-Token, Set-Cookie, Cookie, Access-Control-Allow-Headers, Access-Control-Allow-Origin',
-            'Access-Control-Allow-Origin': dev_client,
+            'Access-Control-Allow-Origin': cors_client,
         }
         
         if (!(event.httpMethod == 'OPTIONS' || event.httpMethod == 'POST')) {
