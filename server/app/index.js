@@ -4,6 +4,19 @@ function new_ref(type) {
     return `${type}_${uuidv4().split('-').join('_')}` 
 }
 
+function ref_type(ref) { 
+        
+    if (typeof ref == 'string') {
+
+        if (ref.length < 38) return undefined
+        else {
+            if (ref.substring(ref.length - 37, ref.length - 36) == '_') return ref.substring(0, ref.length - 37)
+            else return undefined
+        }
+    }
+    else return undefined
+}
+
 const handlers = {}
 
 const add = {
@@ -30,6 +43,9 @@ const add = {
         if (args.length != 2) throw new Error('Ждем два аргумента: наименование обработчика и собственно функция')
         if (typeof args[0] != 'string') throw new Error('Наименование обработчика должно быть строкой')
         if (typeof args[1] != 'function') throw new Error('Обработчик должен быть функцией')
+
+        if (['add', 'exists', 'new_ref', 'ref_type', 'ext'].includes(args[0]))
+            throw new Error(`Нельзя использовать зарезервированные слова (${args[0]}) в качестве наименований функций`)
 
         if (current[args[0]])
             throw new Error(`Ключ ${args[0]} уже существует`)
@@ -107,6 +123,7 @@ const app = new Proxy({}, {
         else if (prop == 'exists') return new Proxy(function() {return handlers}, exists)
 
         else if (prop == 'new_ref') return new_ref
+        else if (prop == 'ref_type') return ref_type
 
         else if (prop == 'ext') return async function(method, params = [], session, file) {
 
