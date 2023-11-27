@@ -1,6 +1,10 @@
-const handlers = {}
+function new_ref(type) { 
+    
+    const { v4: uuidv4 } = require('uuid')
+    return `${type}_${uuidv4().split('-').join('_')}` 
+}
 
-const env = {}
+const handlers = {}
 
 const add = {
 
@@ -102,7 +106,7 @@ const app = new Proxy({}, {
 
         else if (prop == 'exists') return new Proxy(function() {return handlers}, exists)
 
-        else if (prop == 'env') return env
+        else if (prop == 'new_ref') return new_ref
 
         else if (prop == 'ext') return async function(method, params = [], session, file) {
 
@@ -116,7 +120,7 @@ const app = new Proxy({}, {
 
                 if (is_developer) return err
                 else {
-console.log({err: JSON.stringify(err)})
+
                     let data = {...err.error}
                     return {error: {code: data.code, message: data.message}}
                 }
