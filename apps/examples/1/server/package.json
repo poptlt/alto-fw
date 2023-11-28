@@ -1,0 +1,15 @@
+{
+  "name": "1_server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@alto-fw/app": "https://gitpkg.now.sh/poptlt/alto-fw/server/app?master",
+    "@alto-fw/http_server": "https://gitpkg.now.sh/poptlt/alto-fw/server/http_server?master"
+  }
+}
