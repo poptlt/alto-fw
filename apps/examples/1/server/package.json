@@ -1,7 +1,7 @@
 {
   "name": "1_server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Пример № 1 alto_fw сервер",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@alto-fw/app": "https://gitpkg.now.sh/poptlt/alto-fw/server/app?master",
-    "@alto-fw/http_server": "https://gitpkg.now.sh/poptlt/alto-fw/server/http_server?master"
+    "@alto-fw/http_server": "https://gitpkg.now.sh/poptlt/alto-fw/server/http_server?master",
+    "@alto-fw/yc-func": "https://gitpkg.now.sh/poptlt/alto-fw/server/yc_func?master"
   }
 }

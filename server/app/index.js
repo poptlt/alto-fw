@@ -180,7 +180,13 @@ const app = new Proxy({}, {
             
             catch(error) {
 
-                if (typeof error == 'string') return await ext_error(ctx, {error: {code: 'FOR_USER', message: error}})
+                if (typeof error == 'string') {
+
+                    let arr = error.split(':::')
+                    if (arr.length == 2) 
+                        return await ext_error(ctx, {error: {code: arr[0], message: arr[1]}})
+                    else return await ext_error(ctx, {error: {code: 'FOR_USER', message: error}})
+                }
                     
                 else if (typeof error == 'object') {
                 
