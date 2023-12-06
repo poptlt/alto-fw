@@ -1,6 +1,10 @@
 <template>
 <div>
 
+    <select v-model="url" style="margin: 10px;">
+        <option v-for="server in server_list">{{ server }}</option>
+    </select>
+
     <div style="margin: 10px; border: 3px solid">
         <div style="margin: 5px">a: <input type="text" v-model="a"/></div>
         <div style="margin: 5px">b: <input type="text" v-model="b"/></div>
@@ -27,12 +31,12 @@
 <script>
 import request from '@alto-fw/request'
 import config from './config'
-const req = request(config.url)
 
 export default {
 
     data() {
         return {
+            url: config.urls[0],
             a: null,
             b: null,
             res1: null,
@@ -44,6 +48,10 @@ export default {
     },
   
     computed: {
+
+        server_list() { return config.urls },
+
+        drv() { return this.url ? request(this.url) : undefined },
 
         req1() { return {method: 'test', params: [this.a, this.b]}},
 
@@ -60,16 +68,14 @@ export default {
 
         async send_req1() {
 
-            this.res1 = await req(this.req1) 
+            this.res1 = await this.drv(this.req1) 
         },
 
         async send_req2() {
 
-            this.res2 = await req(this.req2) 
+            this.res2 = await this.drv(this.req2) 
         },
-},
-
-
+    },
 }
 </script>
 

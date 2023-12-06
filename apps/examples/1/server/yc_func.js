@@ -1,3 +1,4 @@
+const config = require('./config')
 const handler = require('@alto-fw/yc-func')
 const data = {}
 const app = require('./srv_app')

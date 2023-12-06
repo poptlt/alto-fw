@@ -6,9 +6,7 @@ const handlers = {
     async division(ctx, a, b) { 
     
         if (b == 0) throw 'На ноль делить нельзя!'
-        let res = a /b
-        console.log({res})
-        return res 
+        return a /b 
     }
 }
 

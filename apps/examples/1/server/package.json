@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "adm-zip": "^0.5.10",
     "@alto-fw/app": "https://gitpkg.now.sh/poptlt/alto-fw/server/app?master",
     "@alto-fw/http_server": "https://gitpkg.now.sh/poptlt/alto-fw/server/http_server?master",
     "@alto-fw/yc-func": "https://gitpkg.now.sh/poptlt/alto-fw/server/yc_func?master"
