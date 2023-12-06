@@ -132,7 +132,7 @@ const app = new Proxy({}, {
             async function ext_error(ctx, err) {
 
                 let is_developer = app.exists('auth') ? await app.auth.is_developer(ctx) : true
-console.log({ctx, err, is_developer})
+
                 if (is_developer) return err
                 else {
 
